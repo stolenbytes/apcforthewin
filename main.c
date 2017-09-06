@@ -151,7 +151,7 @@ ULONG_PTR       GetGoodDll(__in ULONG   dwSize){
                 #endif
                 psection = (PSECTION_HEADER)((ULONG_PTR)pe32 + 4 + sizeof(IMAGE_FILE_HEADER) + pe32->pe_sizeofoptionalheader); 
                 for (jindex = 0; jindex < pe32->pe_numberofsections; jindex++){
-                        if (psection[jindex].sh_characteristics & IMAGE_SCN_MEM_WRITE){
+                        if (psection[jindex].sh_characteristics & IMAGE_SCN_MEM_WRITE && _stricmp(psection[jindex].sh_name, ".mrdata")){
                                 if (psection[jindex].sh_virtualsize % 0x1000){
                                         if (dwSize <= 0x1000 - (psection[jindex].sh_virtualsize % 0x1000)){
                                                 write_offset = psection[jindex].sh_virtualaddress + psection[jindex].sh_virtualsize + imagebase[index];                                        
