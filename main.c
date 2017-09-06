@@ -398,7 +398,7 @@ int __cdecl wmain(int argc, wchar_t **argv){
                 return 1;
         }
         
-        printf("[*] Found write offset at: %p\n", write_offset);
+        printf("[*] Found write offset at: %p\n", (void*)write_offset);
         
         rwxdllbase = (ULONG_PTR)LoadLibrary(g_rwxDll);
         pmz = (PIMAGE_DOS_HEADER)rwxdllbase;
@@ -413,7 +413,7 @@ int __cdecl wmain(int argc, wchar_t **argv){
                 if ((psection[index].sh_characteristics & 0xF0000000) == (IMAGE_SCN_MEM_WRITE | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_EXECUTE)){
                         if (psection[index].sh_virtualsize % 0x1000){
                                 rwx_offset = psection[index].sh_virtualaddress;
-                                printf("[*] Found rwx offset at  : %p\n", rwx_offset); 
+                                printf("[*] Found rwx offset at  : %p\n", (void*)rwx_offset); 
                                 break;                              
                         }        
                 }         
